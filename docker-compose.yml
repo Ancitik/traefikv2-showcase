@@ -1,0 +1,65 @@
+version: "3.7"
+services:
+  traefik:
+    image: traefik:2.2
+    hostname: traefik
+    restart: unless-stopped
+    networks:
+      - traefik-net
+    ports:
+      # must bind port to host to enable client ip resolution (if not client will have traefik container ip in ingress network )
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./configs/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./configs/traefik-dynamic.yml:/etc/traefik/dynamic-conf/traefik-dynamic-conf.yml:ro
+      - ./certs:/etc/certs:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    labels:
+      - "traefik.enable=true"
+      # Services declaration
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      # HTTP
+      - "traefik.http.routers.traefik-redirect.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-redirect.service=api@internal"
+      - "traefik.http.routers.traefik-redirect.entrypoints=web"
+      - "traefik.http.routers.traefik-redirect.middlewares=https-redirect@file"
+      # HTTPS
+      - "traefik.http.routers.traefik-ssl.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-ssl.service=api@internal"
+      - "traefik.http.routers.traefik-ssl.entrypoints=websecure"
+      - "traefik.http.routers.traefik-ssl.tls=true"
+  whoami:
+    image: containous/whoami
+    hostname: whoami
+    restart: unless-stopped
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      # Services declaration
+      - "traefik.http.services.whoami-svc.loadbalancer.server.port=80"
+      # HTTP
+      - "traefik.http.routers.whoami-redirect.rule=Host(`whoami.${DOMAIN}`)"
+      # - "traefik.http.routers.traefik-ssl.service=whoami-svc@docker" # Implicit
+      - "traefik.http.routers.whoami-redirect.entrypoints=web"
+      - "traefik.http.routers.whoami-redirect.middlewares=https-redirect@file"
+      # HTTPS
+      - "traefik.http.routers.whoami-ssl.rule=Host(`whoami.${DOMAIN}`)"
+      # - "traefik.http.routers.traefik-ssl.service=whoami-svc@docker" # Implicit
+      - "traefik.http.routers.whoami-ssl.entrypoints=websecure"
+      - "traefik.http.routers.whoami-ssl.tls=true"
+
+networks:
+  traefik-net:

@@ -1,0 +1,22 @@
+accessLog: {}
+
+api:
+  dashboard: true
+          
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+    # forwardedHeaders:
+    #   trustedIPs:
+    #     - "127.0.0.1/32"
+    #     - "172.25.0.0/16"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: traefik-net
+  file:
+    filename: /etc/traefik/dynamic-conf/traefik-dynamic-conf.yml
+    watch: true
